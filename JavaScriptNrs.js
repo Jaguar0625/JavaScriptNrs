@@ -581,6 +581,144 @@ function sqrt(x, u) {
     mul(x, u, t1);	/* x = uv(2uv^2-1)	*/
 }
 
+
+/********************* Elliptic curve *********************/
+
+/* y^2 = x^3 + 486662 x^2 + x  over GF(2^255-19) */
+
+/* t1 = ax + az
+ * t2 = ax - az  */
+function mont_prep(t1, t2, ax, az) {
+    add(t1, ax, az);
+    sub(t2, ax, az);
+}
+
+/* A = P + Q   where
+ *  X(A) = ax/az
+ *  X(P) = (t1+t2)/(t1-t2)
+ *  X(Q) = (t3+t4)/(t3-t4)
+ *  X(P-Q) = dx
+ * clobbers t1 and t2, preserves t3 and t4  */
+function mont_add(t1, t2, t3, t4, ax, az, dx) {
+    mul(ax, t2, t3);
+    mul(az, t1, t4);
+    add(t1, ax, az);
+    sub(t2, ax, az);
+    sqr(ax, t1);
+    sqr(t1, t2);
+    mul(az, t1, dx);
+}
+
+/* B = 2 * Q   where
+ *  X(B) = bx/bz
+ *  X(Q) = (t3+t4)/(t3-t4)
+ * clobbers t1 and t2, preserves t3 and t4  */
+function mont_dbl(t1, t2, t3, t4, bx, bz) {
+    sqr(t1, t3);
+    sqr(t2, t4);
+    mul(bx, t1, t2);
+    sub(t2, t1, t2);
+    mul_small(bz, t2, 121665);
+    add(t1, t1, bz);
+    mul(bz, t1, t2);
+}
+
+/* Y^2 = X^3 + 486662 X^2 + X
+ * t is a temporary  */
+function x_to_y2(t, y2, x) {
+    sqr(t, x);
+    mul_small(y2, x, 486662);
+    add(t, t, y2);
+    t._0++;
+    mul(y2, t, x);
+}
+
+/* P = kG   and  s = sign(P)/k  */
+function core(Px, s, k, Gx) {
+    var
+    dx=long10(),
+        t1=long10(),
+        t2=long10(),
+        t3=long10(),
+        t4=long10();
+    var
+    x=[long10(), long10()],
+    z=[long10(), long10()];
+    var i, j;
+
+    /* unpack the base */
+    if (Gx!=null)
+        unpack(dx, Gx);
+    else
+        set(dx, 9);
+
+    /* 0G = point-at-infinity */
+    set(x[0], 1);
+    set(z[0], 0);
+
+    /* 1G = G */
+    cpy(x[1], dx);
+    set(z[1], 1);
+
+    for (i = 32; i--!=0; ) {
+        if (i==0) {
+            i=0;
+        }
+        for (j = 8; j--!=0; ) {
+            /* swap arguments depending on bit */
+            var bit1 = (k[i] & 0xFF) >> j & 1;
+            var bit0 = ~(k[i] & 0xFF) >> j & 1;
+            var ax = x[bit0];
+            var az = z[bit0];
+            var bx = x[bit1];
+            var bz = z[bit1];
+
+            /* a' = a + b	*/
+            /* b' = 2 b	*/
+            mont_prep(t1, t2, ax, az);
+            mont_prep(t3, t4, bx, bz);
+            mont_add(t1, t2, t3, t4, ax, az, dx);
+            mont_dbl(t1, t2, t3, t4, bx, bz);
+        }
+    }
+
+    recip(t1, z[0], 0);
+    mul(dx, x[0], t1);
+    pack(dx, Px);
+
+    /* calculate s such that s abs(P) = G  .. assumes G is std base point */
+    if (s!=null) {
+        x_to_y2(t2, t1, dx);	/* t1 = Py^2  */
+        recip(t3, z[1], 0);	/* where Q=P+G ... */
+        mul(t2, x[1], t3);	/* t2 = Qx  */
+        add(t2, t2, dx);	/* t2 = Qx + Px  */
+        t2._0 += 9 + 486662;	/* t2 = Qx + Px + Gx + 486662  */
+        dx._0 -= 9;		/* dx = Px - Gx  */
+        sqr(t3, dx);	/* t3 = (Px - Gx)^2  */
+        mul(dx, t2, t3);	/* dx = t2 (Px - Gx)^2  */
+        sub(dx, dx, t1);	/* dx = t2 (Px - Gx)^2 - Py^2  */
+        dx._0 -= 39420360;	/* dx = t2 (Px - Gx)^2 - Py^2 - Gy^2  */
+        mul(t1, dx, BASE_R2Y);	/* t1 = -Py  */
+        if (is_negative(t1)!=0)	/* sign is 1, so just copy  */
+            cpy32(s, k);
+        else			/* sign is -1, so negate  */
+            mula_small(s, ORDER_TIMES_8, 0, k, 32, -1);
+
+        /* reduce s mod q
+         * (is this needed?  do it just in case, it's fast anyway) */
+        //divmod((dstptr) t1, s, 32, order25519, 32);
+
+        /* take reciprocal of s mod q */
+        var temp1=createArray32();
+        var temp2=createZeroArray(64);
+        var temp3=createZeroArray(64);
+        cpy32(temp1, ORDER);
+        cpy32(s, egcd32(temp2, temp3, s, temp1));
+        if ((s[31] & 0x80)!=0)
+            mula_small(s, s, 0, ORDER, 32, 1);
+    }
+}
+
 /********* DIGITAL SIGNATURES *********/
 
 /* deterministic EC-KCDSA
@@ -643,10 +781,150 @@ function sqrt(x, u) {
     return w != 0 ? v : undefined;
 }
 
+/* Signature verification primitive, calculates Y = vP + hG
+ *   v  [in]  signature value
+ *   h  [in]  signature hash
+ *   P  [in]  public key
+ *   Returns signature public key
+ */
+function verify(v, h, P) {
+    /* Y = v abs(P) + h G  */
+    var d=createArray32();
+    var
+    p=[long10(), long10()],
+    s=[long10(), long10()],
+    yx=[long10(), long10(), long10()],
+    yz=[long10(), long10(), long10()],
+    t1=[long10(), long10(), long10()],
+    t2=[long10(), long10(), long10()];
+
+    var vi = 0, hi = 0, di = 0, nvh=0, i, j, k;
+
+    /* set p[0] to G and p[1] to P  */
+
+    set(p[0], 9);
+    unpack(p[1], P);
+
+    /* set s[0] to P+G and s[1] to P-G  */
+
+    /* s[0] = (Py^2 + Gy^2 - 2 Py Gy)/(Px - Gx)^2 - Px - Gx - 486662  */
+    /* s[1] = (Py^2 + Gy^2 + 2 Py Gy)/(Px - Gx)^2 - Px - Gx - 486662  */
+
+    x_to_y2(t1[0], t2[0], p[1]);	/* t2[0] = Py^2  */
+    sqrt(t1[0], t2[0]);	/* t1[0] = Py or -Py  */
+    j = is_negative(t1[0]);		/*      ... check which  */
+    t2[0]._0 += 39420360;		/* t2[0] = Py^2 + Gy^2  */
+    mul(t2[1], BASE_2Y, t1[0]);/* t2[1] = 2 Py Gy or -2 Py Gy  */
+    sub(t1[j], t2[0], t2[1]);	/* t1[0] = Py^2 + Gy^2 - 2 Py Gy  */
+    add(t1[1-j], t2[0], t2[1]);/* t1[1] = Py^2 + Gy^2 + 2 Py Gy  */
+    cpy(t2[0], p[1]);		/* t2[0] = Px  */
+    t2[0]._0 -= 9;			/* t2[0] = Px - Gx  */
+    sqr(t2[1], t2[0]);		/* t2[1] = (Px - Gx)^2  */
+    recip(t2[0], t2[1], 0);	/* t2[0] = 1/(Px - Gx)^2  */
+    mul(s[0], t1[0], t2[0]);	/* s[0] = t1[0]/(Px - Gx)^2  */
+    sub(s[0], s[0], p[1]);	/* s[0] = t1[0]/(Px - Gx)^2 - Px  */
+    s[0]._0 -= 9 + 486662;		/* s[0] = X(P+G)  */
+    mul(s[1], t1[1], t2[0]);	/* s[1] = t1[1]/(Px - Gx)^2  */
+    sub(s[1], s[1], p[1]);	/* s[1] = t1[1]/(Px - Gx)^2 - Px  */
+    s[1]._0 -= 9 + 486662;		/* s[1] = X(P-G)  */
+    mul_small(s[0], s[0], 1);	/* reduce s[0] */
+    mul_small(s[1], s[1], 1);	/* reduce s[1] */
+
+
+    /* prepare the chain  */
+    for (i = 0; i < 32; i++) {
+        vi = (vi >> 8) ^ (v[i] & 0xFF) ^ ((v[i] & 0xFF) << 1);
+        hi = (hi >> 8) ^ (h[i] & 0xFF) ^ ((h[i] & 0xFF) << 1);
+        nvh = ~(vi ^ hi);
+        di = (nvh & (di & 0x80) >> 7) ^ vi;
+        di ^= nvh & (di & 0x01) << 1;
+        di ^= nvh & (di & 0x02) << 1;
+        di ^= nvh & (di & 0x04) << 1;
+        di ^= nvh & (di & 0x08) << 1;
+        di ^= nvh & (di & 0x10) << 1;
+        di ^= nvh & (di & 0x20) << 1;
+        di ^= nvh & (di & 0x40) << 1;
+        d[i] = di & 0xFF;
+    }
+
+    di = ((nvh & (di & 0x80) << 1) ^ vi) >> 8;
+
+    /* initialize state */
+    set(yx[0], 1);
+    cpy(yx[1], p[di]);
+    cpy(yx[2], s[0]);
+    set(yz[0], 0);
+    set(yz[1], 1);
+    set(yz[2], 1);
+
+    /* y[0] is (even)P + (even)G
+     * y[1] is (even)P + (odd)G  if current d-bit is 0
+     * y[1] is (odd)P + (even)G  if current d-bit is 1
+     * y[2] is (odd)P + (odd)G
+     */
+
+    vi = 0;
+    hi = 0;
+
+    /* and go for it! */
+    for (i = 32; i--!=0; ) {
+        vi = (vi << 8) | (v[i] & 0xFF);
+        hi = (hi << 8) | (h[i] & 0xFF);
+        di = (di << 8) | (d[i] & 0xFF);
+
+        for (j = 8; j--!=0; ) {
+            mont_prep(t1[0], t2[0], yx[0], yz[0]);
+            mont_prep(t1[1], t2[1], yx[1], yz[1]);
+            mont_prep(t1[2], t2[2], yx[2], yz[2]);
+
+            k = ((vi ^ vi >> 1) >> j & 1)
+                + ((hi ^ hi >> 1) >> j & 1);
+            mont_dbl(yx[2], yz[2], t1[k], t2[k], yx[0], yz[0]);
+
+            k = (di >> j & 2) ^ ((di >> j & 1) << 1);
+            mont_add(t1[1], t2[1], t1[k], t2[k], yx[1], yz[1],
+                p[di >> j & 1]);
+
+            mont_add(t1[2], t2[2], t1[0], t2[0], yx[2], yz[2],
+                s[((vi ^ hi) >> j & 2) >> 1]);
+        }
+    }
+
+    k = (vi & 1) + (hi & 1);
+    recip(t1[0], yz[k], 0);
+    mul(t1[1], yx[k], t1[0]);
+
+    var Y = []
+    pack(t1[1], Y);
+    return Y;
+}
+
+/* Key-pair generation
+ *   P  [out] your public key
+ *   s  [out] your private key for signing
+ *   k  [out] your private key for key agreement
+ *   k  [in]  32 random bytes
+ * s may be NULL if you don't care
+ *
+ * WARNING: if s is not NULL, this function has data-dependent timing */
+function keygen(k) {
+    var P = [];
+    var s = [];
+    var k = k || [];
+    clamp(k);
+    core(P, s, k, null);
+
+    return { P: P, s: s, k: k };
+}
+
 exports.sign = function (h, s, x) {
     return sign(h, s, x);
 };
 
-exports.verify = function (signature) {
-    console.log('todo...');
+exports.verify = function (v, h, P) {
+    return verify(v, h, P);
+};
+
+exports.keygen = function (k) {
+    return verify(k);
 };
