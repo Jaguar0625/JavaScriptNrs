@@ -25,17 +25,24 @@ fi
 
 pushd . > /dev/null
 
-cd data
+cd datagen
 
 echo 'Compiling java ...'
-javac Main.java
+mkdir -p bin
+javac Main.java -d bin
 
 echo 'Generating data files ...'
-java Main 'sign' > signtest.dat
-java Main 'keygen' > keygentest.dat
-java Main 'verify' > verifytest.dat
-java Main 'crypto-sign' > cryptosigntest.dat
-java Main 'crypto-publickey' > cryptopublickeytest.dat
+cd bin
+function generateDataFiles {
+    local dataDir=../../data
+    java Main 'sign' > $dataDir/signtest.dat
+    java Main 'keygen' > $dataDir/keygentest.dat
+    java Main 'verify' > $dataDir/verifytest.dat
+    java Main 'crypto-sign' > $dataDir/cryptosigntest.dat
+    java Main 'crypto-publickey' > $dataDir/cryptopublickeytest.dat
+}
+
+generateDataFiles
 
 popd > /dev/null
 
