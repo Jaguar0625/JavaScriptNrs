@@ -1,5 +1,13 @@
-// get the curve functions
-var curve25519 = require('./core/curve25519.node.js');
+// get the curve and crypto functions
+var crypto = require('./util/nodejs.bootstrap.js');
+curve25519 = crypto.curve25519;
+crypto = crypto.crypto;
+
+var output = require('./util/output');
+
+function extractPhraseFromLine(line) {
+    return line.split(' ')[1];
+}
 
 function extractBytesFromLine(line) {
     var bytes = [];
@@ -37,12 +45,10 @@ function measureActionTime(action, denom) {
     var elapsed = diff[0] * 1e3 + diff[1] / 1e6;
     console.log('TOT: ' + elapsed.toFixed(3) + 'ms ');
     console.log('AVG: ' + (elapsed / denom).toFixed(3) + 'ms ');
+    console.log('');
 }
 
-var debug = require('./core/debug');
-debug.enable = true;
-
-function loadTestCases(inputFile, l1, l2, l3, l4, runTestCase) {
+function loadTestCases(inputFile, testCaseParameters, runTestCase) {
     var fs = require('fs');
     fs.readFile(inputFile, 'utf8', function (err, data) {
         if (err)
@@ -50,7 +56,7 @@ function loadTestCases(inputFile, l1, l2, l3, l4, runTestCase) {
 
         console.log('Running test cases from ' + inputFile);
 
-        var linesPerTest = 4
+        var linesPerTest = testCaseParameters.length;
         var lines = data.split('\n');
         var numTestCases = (lines.length / linesPerTest) | 0;
         console.log('test cases: ' + numTestCases + ' (lines: ' + lines.length + ')');
@@ -59,10 +65,14 @@ function loadTestCases(inputFile, l1, l2, l3, l4, runTestCase) {
         for (var i = 0; i < numTestCases; ++i) {
             var startLine = i * linesPerTest;
             var testCase = {};
-            testCase[l1] = extractBytesFromLine(lines[startLine]);
-            testCase[l2] = extractBytesFromLine(lines[startLine + 1]);
-            testCase[l3] = extractBytesFromLine(lines[startLine + 2]);
-            testCase[l4] = extractBytesFromLine(lines[startLine + 3]);
+            for (var j = 0; j < linesPerTest; ++j) {
+                var parameter = testCaseParameters[j];
+                var converter = (parameter.type === 'string')
+                    ? extractPhraseFromLine
+                    : extractBytesFromLine;
+
+                testCase[parameter.name || parameter] = converter(lines[startLine + j]);
+            }
 
             testCases.push(testCase);
         }
@@ -83,20 +93,17 @@ function loadTestCases(inputFile, l1, l2, l3, l4, runTestCase) {
 
             console.log(numFailed + ' failures / ' + numPassed + ' passed');
         }, testCases.length);
-
-        console.log('');
     });
 }
 
 function runSignTest() {
-    loadTestCases('./data/signtest.dat', 'v', 'h', 'x', 's', function (testCase) {
+    loadTestCases('./data/signtest.dat', ['v', 'h', 'x', 's'], function (testCase) {
 
         var v = curve25519.sign(testCase.h, testCase.x, testCase.s);
 
         if (!areEqual(v, testCase.v)) {
-            debug.logBytes('E', testCase.v);
-            debug.logBytes('A', v);
-            console.log('');
+            output.logBytes('E', testCase.v);
+            output.logBytes('A', v);
             return false;
         }
 
@@ -105,7 +112,7 @@ function runSignTest() {
 }
 
 function runKeygenTest() {
-    loadTestCases('./data/keygentest.dat', 'k1', 'p', 's', 'k2', function (testCase) {
+    loadTestCases('./data/keygentest.dat', ['k1', 'p', 's', 'k2'], function (testCase) {
 
         var result = curve25519.keygen(testCase.k1);
 
@@ -122,8 +129,8 @@ function runKeygenTest() {
                 continue;
 
             hasFailure = true;
-            debug.logBytes('E(' + pair.name + ')', pair.e);
-            debug.logBytes('A(' + pair.name + ')', pair.a);
+            output.logBytes('E(' + pair.name + ')', pair.e);
+            output.logBytes('A(' + pair.name + ')', pair.a);
         }
 
         return !hasFailure;
@@ -131,16 +138,13 @@ function runKeygenTest() {
 }
 
 function runVerifyTest () {
-    loadTestCases('./data/verifytest.dat', 'y', 'v', 'h', 'p', function (testCase) {
+    loadTestCases('./data/verifytest.dat', ['y', 'v', 'h', 'p'], function (testCase) {
 
         var y = curve25519.verify(testCase.v, testCase.h, testCase.p);
 
         if (!areEqual(y, testCase.y)) {
-            ++numFailures;
-            console.log(i + ': failed :(');
-            debug.logBytes('E', testCase.y);
-            debug.logBytes('A', y);
-            console.log('');
+            output.logBytes('E', testCase.y);
+            output.logBytes('A', y);
             return false;
         }
 
@@ -148,6 +152,98 @@ function runVerifyTest () {
     });
 }
 
+function runCryptoPublicKeyTest () {
+    loadTestCases('./data/cryptopublickeytest.dat', [{ name: 'p', type: 'string' }, 'k'], function (testCase) {
+        var k = crypto.publicKey(testCase.p);
+
+        if (!areEqual(k, testCase.k)) {
+            output.logBytes('E', testCase.k);
+            output.logBytes('A', k);
+            return false;
+        }
+
+        return true;
+    });
+}
+
+function runCryptoSignTest () {
+    loadTestCases('./data/cryptosigntest.dat', [{ name: 'p', type: 'string' }, 'm', 's'], function (testCase) {
+        var s = crypto.sign(testCase.m, testCase.p);
+
+        if (!areEqual(s, testCase.s)) {
+            output.logBytes('E', testCase.s);
+            output.logBytes('A', s);
+            return false;
+        }
+
+        return true;
+    });
+}
+
+function stringToBytes(s) {
+    var bytes = [];
+    for (var i = 0; i < s.length; ++i)
+        bytes.push(s.charCodeAt(i));
+
+    return bytes;
+}
+
+function runCryptoVerifyTest () {
+    console.log('Running verification test cases ...');
+
+    var secrets = ['alpha', 'gamma', 'zeta'];
+    var messages = ['seahawks', 'saints', 'patriots', 'colts'];
+
+    console.log('generating public keys (' + secrets.length + ') ...');
+    var keys = [];
+    for (var i = 0; i < secrets.length; ++i)
+        keys.push(crypto.publicKey(secrets[i]));
+
+    function foreachSecretAndMessage (callback) {
+        for (var i = 0; i < secrets.length; ++i) {
+            for (var j = 0; j < messages.length; ++j)
+                callback(secrets[i], keys[i], messages[j]);
+        }
+    }
+
+    console.log('generating signatures (' + messages.length + ') ...');
+    var sigs = {};
+    foreachSecretAndMessage(function (secret, key, message) {
+        var messageBytes = stringToBytes(message);
+        var sig = crypto.sign(messageBytes, secret);
+        sigs[secret + '.' + message] = sig;
+    });
+
+    console.log('verifying ...');
+    measureActionTime(function () {
+        var numPassed = 0;
+        var numFailed = 0;
+        foreachSecretAndMessage(function (secret, key, message) {
+            var id = secret + '.' + message;
+            for (var i in sigs) {
+                var messageBytes = stringToBytes(message);
+                var result = crypto.verify(sigs[i], messageBytes, key);
+
+                if (result == (id == i)) {
+                    ++numPassed;
+                    continue;
+                }
+
+                ++numFailed;
+                console.log('E: ' + (id == i));
+                console.log('A: ' + result);
+                console.log('^[' + secret + ', ' + message + ', ' + id + '] :(');
+            }
+        });
+
+        console.log(numFailed + ' failures / ' + numPassed + ' passed');
+    }, secrets.length * messages.length * secrets.length * messages.length);
+}
+
 runSignTest();
 runKeygenTest();
 runVerifyTest();
+
+runCryptoPublicKeyTest();
+runCryptoSignTest()
+runCryptoVerifyTest();;

@@ -10,3 +10,13 @@ Original: http://code.google.com/p/curve25519-java/
 C implementation based on generic 64-bit integer implementation of Curve25519 ECDH
 Written by Matthijs van Duin, 200608242056
 Original: http://cds.xs4all.nl:8081/ecdh/ (broken link)
+
+This port uses the following external libraries:
+- [goog.math.long](http://docs.closure-library.googlecode.com/git/class_goog_math_Long.html) (Apache License)
+- [JSSHA256](http://point-at-infinity.org/jssha256/) (GNU GPL)
+
+Command to do a full build and generation of data files:
+bash build/build.sh
+
+Command to run all tests:
+node test.js

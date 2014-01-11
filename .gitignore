@@ -2,3 +2,5 @@
 .idea
 .backup
 *.class
+*.debug.js
+MainDebug.java

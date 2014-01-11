@@ -6,12 +6,21 @@ then
         ./core/curve25519.debug.js > ./core/curve25519.js;
 fi
 
-if [ -e ./data/Main.debug.java ];
+if [ -e ./core/crypto.debug.js ];
 then
-    echo 'Removing debug statements from ./data/Main.js ...';
-    sed -e '/Debug\./d' \
+    echo 'Removing debug statements from ./core/crypto ...';
+    sed -e '/debug/d' \
         -e '/./,/^$/!d' \
-        ./data/Main.debug.java > ./data/Main.java
+        ./core/crypto.debug.js > ./core/crypto.js;
+fi
+
+if [ -e ./data/MainDebug.java ];
+then
+    echo 'Removing debug statements from ./data/MainDebug.java ...';
+    sed -e '/[^n]Debug\./d' \
+        -e 's/MainDebug/Main/' \
+        -e '/./,/^$/!d' \
+        ./data/MainDebug.java > ./data/Main.java
 fi
 
 pushd . > /dev/null
@@ -25,6 +34,8 @@ echo 'Generating data files ...'
 java Main 'sign' > signtest.dat
 java Main 'keygen' > keygentest.dat
 java Main 'verify' > verifytest.dat
+java Main 'crypto-sign' > cryptosigntest.dat
+java Main 'crypto-publickey' > cryptopublickeytest.dat
 
 popd > /dev/null
 

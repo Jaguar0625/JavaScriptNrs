@@ -1,7 +1,12 @@
+import java.math.BigInteger;
 import java.security.MessageDigest;
+import java.util.Arrays;
 import java.util.Random;
 
 public class Main {
+
+    private static final int NUM_TEST_CASES = 100;
+    private static final int RANDOM_SEED = 1000;
 
     static class Curve25519 {
 
@@ -906,6 +911,76 @@ int zi = 0;
     );
     }
 
+	static class Crypto {
+
+		static byte[] getPublicKey(String secretPhrase) throws Exception {
+
+			byte[] publicKey = new byte[32];
+			byte[] digest = MessageDigest.getInstance("SHA-256").digest(secretPhrase.getBytes("UTF-8"));
+			Curve25519.keygen(publicKey, null, digest);
+
+			return publicKey;
+		}
+
+		static byte[] sign(byte[] message, String secretPhrase) {
+
+			try {
+				byte[] P = new byte[32];
+				byte[] s = new byte[32];
+				MessageDigest digest = MessageDigest.getInstance("SHA-256");
+				Curve25519.keygen(P, s, digest.digest(secretPhrase.getBytes("UTF-8")));
+
+				byte[] m = digest.digest(message);
+
+				digest.update(m);
+				byte[] x = digest.digest(s);
+
+				byte[] Y = new byte[32];
+				Curve25519.keygen(Y, null, x);
+
+				digest.update(m);
+				byte[] h = digest.digest(Y);
+
+				byte[] v = new byte[32];
+				Curve25519.sign(v, h, x, s);
+
+				byte[] signature = new byte[64];
+				System.arraycopy(v, 0, signature, 0, 32);
+				System.arraycopy(h, 0, signature, 32, 32);
+
+				return signature;
+
+			} catch (Exception e) {
+				return null;
+			}
+		}
+
+		static boolean verify(byte[] signature, byte[] message, byte[] publicKey) {
+
+			try {
+
+				byte[] Y = new byte[32];
+				byte[] v = new byte[32];
+				System.arraycopy(signature, 0, v, 0, 32);
+				byte[] h = new byte[32];
+				System.arraycopy(signature, 32, h, 0, 32);
+				Curve25519.verify(Y, v, h, publicKey);
+
+				MessageDigest digest = MessageDigest.getInstance("SHA-256");
+				byte[] m = digest.digest(message);
+				digest.update(m);
+				byte[] h2 = digest.digest(Y);
+
+				return Arrays.equals(h, h2);
+
+			} catch (Exception e) {
+
+				return false;
+
+			}
+		}
+	}
+
     public static class Output {
         public static void printBytes(String tag, byte[] bytes) {
             System.out.print(tag + ": ");
@@ -916,6 +991,10 @@ int zi = 0;
                     System.out.print(String.format("%02X ", b));
 
            System.out.println();
+        }
+
+        public static void printPhrase(String phrase) {
+            System.out.println("phrase: " + phrase);
         }
     }
 
@@ -962,7 +1041,7 @@ int zi = 0;
         int i = 0;
 
 	    String[] secrets = { "BCNext", "Graviton", "Come from Beyond", "Frictionless", "Jean-Luc" };
-	    Random rand = new Random(1000);
+	    Random rand = new Random(RANDOM_SEED);
 	    for (String s1 : secrets) {
 	        for (String s2 : secrets) {
 
@@ -988,9 +1067,9 @@ int zi = 0;
     }
 
     public static void GenerateKeygenTestCases() {
-        Random rand = new Random(1000);
+        Random rand = new Random(RANDOM_SEED);
 
-        for (int i = 0; i < 100; ++i) {
+        for (int i = 0; i < NUM_TEST_CASES; ++i) {
             byte[] P = new byte[32];
             byte[] s = new byte[32];
             byte[] k = new byte[32];
@@ -1007,9 +1086,9 @@ int zi = 0;
     }
 
     public static void GenerateVerifyTestCases() {
-        Random rand = new Random(1000);
+        Random rand = new Random(RANDOM_SEED);
 
-        for (int i = 0; i < 100; ++i) {
+        for (int i = 0; i < NUM_TEST_CASES; ++i) {
             byte[] Y = new byte[32];
             byte[] v = new byte[32];
             byte[] h = new byte[32];
@@ -1027,7 +1106,46 @@ int zi = 0;
         }
     }
 
+    public static void GenerateCryptoPublicKeyTests() throws Exception {
+        Random rand = new Random(RANDOM_SEED);
+        for (int i = 0; i < NUM_TEST_CASES; ++i) {
+            String phrase = new BigInteger(130, rand).toString(32);
+            byte[] key = Crypto.getPublicKey(phrase);
+
+            Output.printPhrase(phrase);
+            Output.printBytes("key", key);
+        }
+    }
+
+    public static void GenerateCryptoSignTests() throws Exception {
+        Random rand = new Random(RANDOM_SEED);
+        for (int i = 0; i < NUM_TEST_CASES; ++i) {
+            byte[] message = new BigInteger(130, rand).toByteArray();
+            String phrase = new BigInteger(130, rand).toString(32);
+
+            byte[] sig = Crypto.sign(message, phrase);
+
+            Output.printPhrase(phrase);
+            Output.printBytes("msg", message);
+            Output.printBytes("sig", sig);
+        }
+    }
+
+    public static void CryptoVerifyTest() throws Exception {
+
+        String secret = "three";
+        String message = "patriots";
+        byte[] messageBytes = message.getBytes("UTF-8");
+        byte[] key = Crypto.getPublicKey(secret);
+
+        byte[] sig = Crypto.sign(messageBytes, secret);
+
+        Boolean result = Crypto.verify(sig, messageBytes, key);
+        System.out.println("verify result: " + result);
+    }
+
 	public static void main (String args[]) throws Exception {
+
 	    String mode = args.length > 0 ? args[0] : "<none>";
         if (mode.equals("sign"))
             GenerateSignTestCases();
@@ -1035,6 +1153,12 @@ int zi = 0;
             GenerateKeygenTestCases();
         else if (mode.equals("verify"))
             GenerateVerifyTestCases();
+        else if (mode.equals("crypto-publickey"))
+            GenerateCryptoPublicKeyTests();
+        else if (mode.equals("crypto-sign"))
+            GenerateCryptoSignTests();
+        else if (mode.equals("crypto-verify"))
+            CryptoVerifyTest();
         else
             System.out.println("[" + mode + "] is unknown");
 	}
