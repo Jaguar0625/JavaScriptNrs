@@ -13,7 +13,7 @@ eval(fs.readFileSync('external/curve255.js') + '');
 eval(fs.readFileSync('core/curve25519.js') + '');
 
 // include the crypto library
-eval(fs.readFileSync('core/crypto.debug.js') + '');
+eval(fs.readFileSync('core/crypto.js') + '');
 
 // export functions via node
 exports.curve25519 = curve25519;
