@@ -24,6 +24,10 @@ function extractBytesFromLine(line) {
     return bytes;
 }
 
+function extractHexStringFromLine(line) {
+    return line.split(' ').slice(1).join('').toLowerCase();
+}
+
 function areEqual(bytes1, bytes2) {
     if (bytes1.length !== bytes2.length)
         return false;
@@ -67,9 +71,11 @@ function loadTestCases(inputFile, testCaseParameters, runTestCase) {
             var testCase = {};
             for (var j = 0; j < linesPerTest; ++j) {
                 var parameter = testCaseParameters[j];
-                var converter = (parameter.type === 'string')
-                    ? extractPhraseFromLine
-                    : extractBytesFromLine;
+                var converter = extractBytesFromLine;
+                if (parameter.type === 'string')
+                   converter = extractPhraseFromLine;
+                if (parameter.type == 'hexstring')
+                    converter = extractHexStringFromLine;
 
                 testCase[parameter.name || parameter] = converter(lines[startLine + j]);
             }
@@ -153,12 +159,12 @@ function runVerifyTest () {
 }
 
 function runCryptoPublicKeyTest () {
-    loadTestCases('./data/cryptopublickeytest.dat', [{ name: 'p', type: 'string' }, 'k'], function (testCase) {
+    loadTestCases('./data/cryptopublickeytest.dat', [{ name: 'p', type: 'string' }, { name: 'k', type: 'hexstring' }], function (testCase) {
         var k = crypto.publicKey(testCase.p);
 
         if (!areEqual(k, testCase.k)) {
-            output.logBytes('E', testCase.k);
-            output.logBytes('A', k);
+            console.log('E: ' + testCase.k);
+            console.log('A: ' + k);
             return false;
         }
 
@@ -167,12 +173,12 @@ function runCryptoPublicKeyTest () {
 }
 
 function runCryptoSignTest () {
-    loadTestCases('./data/cryptosigntest.dat', [{ name: 'p', type: 'string' }, 'm', 's'], function (testCase) {
+    loadTestCases('./data/cryptosigntest.dat', [{ name: 'p', type: 'string' }, 'm', { name: 's', type: 'hexstring' }], function (testCase) {
         var s = crypto.sign(testCase.m, testCase.p);
 
         if (!areEqual(s, testCase.s)) {
-            output.logBytes('E', testCase.s);
-            output.logBytes('A', s);
+            console.log('E: ' + testCase.s);
+            console.log('A: ' + s);
             return false;
         }
 
@@ -246,4 +252,6 @@ runVerifyTest();
 
 runCryptoPublicKeyTest();
 runCryptoSignTest()
-runCryptoVerifyTest();;
+runCryptoVerifyTest();
+
+

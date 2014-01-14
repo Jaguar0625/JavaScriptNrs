@@ -1,4 +1,4 @@
-var output = require('../core/output');
+var output = require('./output');
 
 var debug = {
     enable: false,

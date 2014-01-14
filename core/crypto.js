@@ -4,7 +4,7 @@ var hash = {
     getBytes: SHA256_finalize
 };
 
-var crypto = function (curve25519, hash) {
+var nxtCrypto = function (curve25519, hash) {
 
     function simpleHash (message) {
         hash.init();
@@ -24,9 +24,48 @@ var crypto = function (curve25519, hash) {
         return true;
     }
 
-    function publicKey (secretPhrase) {
+    function byteArrayToShortArray (bytes) {
+        if (0 != (bytes.length % 2))
+            throw 'unexpected digest length';
+
+        var shorts = [];
+        for (var i = 0; i < bytes.length; i += 2)
+            shorts.push(bytes[i + 1] << 8 | bytes[i]);
+
+        return shorts;
+    }
+
+    function shortArrayToByteArray (shorts) {
+        var bytes = [];
+        for (var i = 0; i < shorts.length; ++i) {
+            bytes.push(shorts[i] & 0xFF);
+            bytes.push(shorts[i] >> 8);
+        }
+
+        return bytes;
+    }
+
+    function byteArrayToHexString (bytes) {
+        return array_to_hex_string(bytes);
+    }
+
+    function hexStringToByteArray (str) {
+        var bytes = [];
+        for (var i = 0; i < str.length; i += 2)
+            bytes.push(parseInt('0x' + str.charAt(i) + str.charAt(i + 1)));
+
+        return bytes;
+    }
+
+    function publicKeySlow (secretPhrase) {
         var digest = simpleHash(secretPhrase);
         return curve25519.keygen(digest).p;
+    };
+
+    function publicKey (secretPhrase) {
+        var digest = simpleHash(secretPhrase);
+        var shorts = byteArrayToShortArray(digest);
+        return byteArrayToHexString(shortArrayToByteArray(curve25519_fast(shorts)));
     };
 
     function sign (message, secretPhrase) {
@@ -51,10 +90,12 @@ var crypto = function (curve25519, hash) {
 
         var v = curve25519.sign(h, x, s);
 
-        return v.concat(h);
+        return byteArrayToHexString(v.concat(h));
     }
 
     function verify (signature, message, publicKey) {
+        var signature = hexStringToByteArray(signature);
+        var publicKey = hexStringToByteArray(publicKey);
         var v = signature.slice(0, 32);
         var h = signature.slice(32);
         var y = curve25519.verify(v, h, publicKey);
@@ -71,6 +112,7 @@ var crypto = function (curve25519, hash) {
 
     return {
         publicKey: publicKey,
+        publicKeySlow: publicKeySlow,
         sign: sign,
         verify: verify
     };
