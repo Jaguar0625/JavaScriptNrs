@@ -23,6 +23,19 @@ then
         ./data/MainDebug.java > ./data/Main.java
 fi
 
+echo 'Generating merged crypto_browser.js file ...'
+echo 'var goog = { provide: function () { }, math: { } };' > crypto_browser.js
+echo '' >> crypto_browser.js
+cat './external/long.js' >> crypto_browser.js
+echo '' >> crypto_browser.js
+cat './external/jssha256.js' >> crypto_browser.js
+echo '' >> crypto_browser.js
+cat './external/curve255.js' >> crypto_browser.js
+echo '' >> crypto_browser.js
+cat './core/curve25519.js' >> crypto_browser.js
+echo '' >> crypto_browser.js
+cat './core/crypto.js' >> crypto_browser.js
+
 pushd . > /dev/null
 
 cd datagen
