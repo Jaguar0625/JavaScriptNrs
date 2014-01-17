@@ -12,7 +12,7 @@ var nxtCrypto = function (curve25519, hash) {
         return hash.getBytes();
     }
 
-    function areByteArraysEqual(bytes1, bytes2) {
+    function areByteArraysEqual (bytes1, bytes2) {
         if (bytes1.length !== bytes2.length)
             return false;
 
@@ -57,15 +57,9 @@ var nxtCrypto = function (curve25519, hash) {
         return bytes;
     }
 
-    function publicKeySlow (secretPhrase) {
-        var digest = simpleHash(secretPhrase);
-        return curve25519.keygen(digest).p;
-    };
-
     function publicKey (secretPhrase) {
         var digest = simpleHash(secretPhrase);
-        var shorts = byteArrayToShortArray(digest);
-        return byteArrayToHexString(shortArrayToByteArray(curve25519_fast(shorts)));
+        return byteArrayToHexString(curve25519.keygen(digest).p);
     };
 
     function sign (message, secretPhrase) {
@@ -112,7 +106,6 @@ var nxtCrypto = function (curve25519, hash) {
 
     return {
         publicKey: publicKey,
-        publicKeySlow: publicKeySlow,
         sign: sign,
         verify: verify
     };
