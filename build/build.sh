@@ -24,7 +24,7 @@ then
 fi
 
 echo 'Generating merged crypto_browser.js file ...'
-cat './external/jssha256.js' >> crypto_browser.js
+cat './external/jssha256.js' > crypto_browser.js
 echo '' >> crypto_browser.js
 cat './core/curve25519.js' >> crypto_browser.js
 echo '' >> crypto_browser.js

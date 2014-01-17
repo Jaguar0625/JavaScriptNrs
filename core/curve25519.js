@@ -58,7 +58,6 @@ var curve25519 = function () {
         24147, 14085, 13606, 6080
     ];
 
-    var C0 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     var C1 = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     var C9 = [9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     var C486671 = [0x6D0F, 0x0007, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -293,6 +292,7 @@ var curve25519 = function () {
         var t4 = new Array(UNPACKED_SIZE);
 
         /* the chain for x^(2^255-21) is straight from djb's implementation */
+        var i;
         sqr(t1, x); /*  2 == 2 * 1	*/
         sqr(t2, t1); /*  4 == 2 * 2	*/
         sqr(t0, t2); /*  8 == 2 * 4	*/
@@ -308,19 +308,19 @@ var curve25519 = function () {
         mul(t2, t1, t3); /* 2^10  - 2^0	*/
         sqr(t1, t2); /* 2^11  - 2^1	*/
         sqr(t3, t1); /* 2^12  - 2^2	*/
-        for (var i = 1; i < 5; i++) {
+        for (i = 1; i < 5; i++) {
             sqr(t1, t3);
             sqr(t3, t1);
         } /* t3 */ /* 2^20  - 2^10	*/
         mul(t1, t3, t2); /* 2^20  - 2^0	*/
         sqr(t3, t1); /* 2^21  - 2^1	*/
         sqr(t4, t3); /* 2^22  - 2^2	*/
-        for (var i = 1; i < 10; i++) {
+        for (i = 1; i < 10; i++) {
             sqr(t3, t4);
             sqr(t4, t3);
         } /* t4 */ /* 2^40  - 2^20	*/
         mul(t3, t4, t1); /* 2^40  - 2^0	*/
-        for (var i = 0; i < 5; i++) {
+        for (i = 0; i < 5; i++) {
             sqr(t1, t3);
             sqr(t3, t1);
         } /* t3 */ /* 2^50  - 2^10	*/
@@ -334,12 +334,12 @@ var curve25519 = function () {
         mul(t2, t3, t1); /* 2^100 - 2^0	*/
         sqr(t3, t2); /* 2^101 - 2^1	*/
         sqr(t4, t3); /* 2^102 - 2^2	*/
-        for (var i = 1; i < 50; i++) {
+        for (i = 1; i < 50; i++) {
             sqr(t3, t4);
             sqr(t4, t3);
         } /* t4 */ /* 2^200 - 2^100 */
         mul(t3, t4, t2); /* 2^200 - 2^0	*/
-        for (var i = 0; i < 25; i++) {
+        for (i = 0; i < 25; i++) {
             sqr(t4, t3);
             sqr(t3, t4);
         } /* t3 */ /* 2^250 - 2^50	*/
@@ -914,7 +914,7 @@ var curve25519 = function () {
     function keygen (k) {
         var P = [];
         var s = [];
-        var k = k || [];
+        k = k || [];
         clamp(k);
         core(P, s, k, null);
 
