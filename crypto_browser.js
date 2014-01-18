@@ -443,7 +443,7 @@ var curve25519 = function () {
 
     /* divide r (size n) by d (size t), returning quotient q and remainder r
      * quotient is size n-t+1, remainder is size t
-     * requires t > 0 && d[t-1] != 0
+     * requires t > 0 && d[t-1] !== 0
      * requires that r[-1] and d[-1] are valid memory locations
      * q may overlap with r+t */
     function divmod (q, r, n, d, t) {
@@ -474,7 +474,7 @@ var curve25519 = function () {
     }
 
     function numsize (x, n) {
-        while (n-- != 0 && x[n] == 0) { }
+        while (n-- !== 0 && x[n] === 0) { }
         return n + 1;
     }
 
@@ -489,21 +489,21 @@ var curve25519 = function () {
             x[i] = y[i] = 0;
         x[0] = 1;
         an = numsize(a, 32);
-        if (an == 0)
+        if (an === 0)
             return y; /* division by zero */
         var temp = new Array(32);
         while (true) {
             qn = bn - an + 1;
             divmod(temp, b, bn, a, an);
             bn = numsize(b, bn);
-            if (bn == 0)
+            if (bn === 0)
                 return x;
             mula32(y, x, temp, qn, -1);
 
             qn = an - bn + 1;
             divmod(temp, a, an, b, bn);
             an = numsize(a, an);
-            if (an == 0)
+            if (an === 0)
                 return y;
             mula32(x, y, temp, qn, -1);
         }
@@ -525,8 +525,8 @@ var curve25519 = function () {
     function is_overflow (x) {
         return (
             ((x[0] > P26 - 19)) &&
-                ((x[1] & x[3] & x[5] & x[7] & x[9]) == P25) &&
-                ((x[2] & x[4] & x[6] & x[8]) == P26)
+                ((x[1] & x[3] & x[5] & x[7] & x[9]) === P25) &&
+                ((x[2] & x[4] & x[6] & x[8]) === P26)
             ) || (x[9] > P25);
     }
 
@@ -607,13 +607,13 @@ var curve25519 = function () {
 
         /* the chain for x^(2^255-21) is straight from djb's implementation */
         var i;
-        sqr(t1, x); /*  2 == 2 * 1	*/
-        sqr(t2, t1); /*  4 == 2 * 2	*/
-        sqr(t0, t2); /*  8 == 2 * 4	*/
-        mul(t2, t0, x); /*  9 == 8 + 1	*/
-        mul(t0, t2, t1); /* 11 == 9 + 2	*/
-        sqr(t1, t0); /* 22 == 2 * 11	*/
-        mul(t3, t1, t2); /* 31 == 22 + 9 == 2^5   - 2^0	*/
+        sqr(t1, x); /*  2 === 2 * 1	*/
+        sqr(t2, t1); /*  4 === 2 * 2	*/
+        sqr(t0, t2); /*  8 === 2 * 4	*/
+        mul(t2, t0, x); /*  9 === 8 + 1	*/
+        mul(t0, t2, t1); /* 11 === 9 + 2	*/
+        sqr(t1, t0); /* 22 === 2 * 11	*/
+        mul(t3, t1, t2); /* 31 === 22 + 9 === 2^5   - 2^0	*/
         sqr(t1, t3); /* 2^6   - 2^1	*/
         sqr(t2, t1); /* 2^7   - 2^2	*/
         sqr(t1, t2); /* 2^8   - 2^3	*/
@@ -660,7 +660,7 @@ var curve25519 = function () {
         mul(t2, t3, t1); /* 2^250 - 2^0	*/
         sqr(t1, t2); /* 2^251 - 2^1	*/
         sqr(t2, t1); /* 2^252 - 2^2	*/
-        if (sqrtassist != 0) {
+        if (sqrtassist !== 0) {
             mul(y, x, t2); /* 2^252 - 3 */
         } else {
             sqr(t1, t2); /* 2^253 - 2^3	*/
@@ -963,7 +963,7 @@ var curve25519 = function () {
         var i, j;
 
         /* unpack the base */
-        if (Gx != null)
+        if (Gx !== null)
             unpack(dx, Gx);
         else
             set(dx, 9);
@@ -1001,7 +1001,7 @@ var curve25519 = function () {
         pack(dx, Px);
 
         /* calculate s such that s abs(P) = G  .. assumes G is std base point */
-        if (s != null) {
+        if (s !== null) {
             x_to_y2(t2, t1, dx); /* t1 = Py^2  */
             recip(t3, z[1], 0); /* where Q=P+G ... */
             mul(t2, x[1], t3); /* t2 = Qx  */
@@ -1014,7 +1014,7 @@ var curve25519 = function () {
             sub(dx, dx, C39420360); /* dx = t2 (Px - Gx)^2 - Py^2 - Gy^2  */
             mul(t1, dx, BASE_R2Y); /* t1 = -Py  */
 
-            if (is_negative(t1) != 0)    /* sign is 1, so just copy  */
+            if (is_negative(t1) !== 0)    /* sign is 1, so just copy  */
                 cpy32(s, k);
             else            /* sign is -1, so negate  */
                 mula_small(s, ORDER_TIMES_8, 0, k, 32, -1);
@@ -1029,7 +1029,7 @@ var curve25519 = function () {
             var temp3 = new Array(64);
             cpy32(temp1, ORDER);
             cpy32(s, egcd32(temp2, temp3, s, temp1));
-            if ((s[31] & 0x80) != 0)
+            if ((s[31] & 0x80) !== 0)
                 mula_small(s, s, 0, ORDER, 32, 1);
 
         }
@@ -1060,11 +1060,11 @@ var curve25519 = function () {
      *    h = m XOR r
      *    verify25519(Y, v, h, P)
      *
-     *    confirm  r == hash(Y)
+     *    confirm  r === hash(Y)
      *
      * It would seem to me that it would be simpler to have the signer directly do
      * h = hash(m, Y) and send that to the recipient instead of r, who can verify
-     * the signature by checking h == hash(m, Y).  If there are any problems with
+     * the signature by checking h === hash(m, Y).  If there are any problems with
      * such a scheme, please let me know.
      *
      * Also, EC-KCDSA (like most DS algorithms) picks x random, which is a waste of
@@ -1089,7 +1089,7 @@ var curve25519 = function () {
         var v = new Array(32);
         mula_small(v, x, 0, h, 32, -1);
         var v31 = v[31];
-        if (0 != (v31 & 0x80))
+        if (0 !== (v31 & 0x80))
             v31 |= 0xFFFFFF00;
 
         mula_small(v, v, 0, ORDER, 32, (15 - v31) / 16);
@@ -1098,7 +1098,7 @@ var curve25519 = function () {
         for (w = 0, i = 0; i < 32; i++)
             w |= v[i] = tmp1[i];
 
-        return w != 0 ? v : undefined;
+        return w !== 0 ? v : undefined;
     }
 
     /* Signature verification primitive, calculates Y = vP + hG
@@ -1185,12 +1185,12 @@ var curve25519 = function () {
         hi = 0;
 
         /* and go for it! */
-        for (i = 32; i-- != 0;) {
+        for (i = 32; i-- !== 0;) {
             vi = (vi << 8) | (v[i] & 0xFF);
             hi = (hi << 8) | (h[i] & 0xFF);
             di = (di << 8) | (d[i] & 0xFF);
 
-            for (j = 8; j-- != 0;) {
+            for (j = 8; j-- !== 0;) {
                 mont_prep(t1[0], t2[0], yx[0], yz[0]);
                 mont_prep(t1[1], t2[1], yx[1], yz[1]);
                 mont_prep(t1[2], t2[2], yx[2], yz[2]);
