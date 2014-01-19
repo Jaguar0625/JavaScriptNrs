@@ -231,7 +231,7 @@ var curve25519 = function () {
     //endregion
 
     function createUnpackedArray () {
-        return new Array(UNPACKED_SIZE);
+        return new Uint16Array(UNPACKED_SIZE);
     }
 
     /* Copy a number */
@@ -408,8 +408,8 @@ var curve25519 = function () {
         r[12] = (v = 0x7fff80 + ((v / 0x10000) | 0) + z[12] + y[4] -x[4] -z[4] + x[12] * 38) & 0xFFFF;
         r[13] = (v = 0x7fff80 + ((v / 0x10000) | 0) + z[13] + y[5] -x[5] -z[5] + x[13] * 38) & 0xFFFF;
         r[14] = (v = 0x7fff80 + ((v / 0x10000) | 0) + z[14] + y[6] -x[6] -z[6] + x[14] * 38) & 0xFFFF;
-        r[15] = 0x7fff80 + ((v / 0x10000) | 0) + z[15] + y[7] -x[7] -z[7] + x[15] * 38;
-        c255lreduce(r);
+        var r15 = 0x7fff80 + ((v / 0x10000) | 0) + z[15] + y[7] -x[7] -z[7] + x[15] * 38;
+        c255lreduce(r, r15);
     }
 
     function c255lmul8h (a7, a6, a5, a4, a3, a2, a1, a0, b7, b6, b5, b4, b3, b2, b1, b0) {
@@ -457,12 +457,12 @@ var curve25519 = function () {
         r[12] = (v = 0x7fff80 + ((v / 0x10000) | 0) + z[12] + y[4] -x[4] -z[4] + x[12] * 38) & 0xFFFF;
         r[13] = (v = 0x7fff80 + ((v / 0x10000) | 0) + z[13] + y[5] -x[5] -z[5] + x[13] * 38) & 0xFFFF;
         r[14] = (v = 0x7fff80 + ((v / 0x10000) | 0) + z[14] + y[6] -x[6] -z[6] + x[14] * 38) & 0xFFFF;
-        r[15] = 0x7fff80 + ((v / 0x10000) | 0) + z[15] + y[7] -x[7] -z[7] + x[15] * 38;
-        c255lreduce(r);
+        var r15 = 0x7fff80 + ((v / 0x10000) | 0) + z[15] + y[7] -x[7] -z[7] + x[15] * 38;
+        c255lreduce(r, r15);
     }
 
-    function c255lreduce (a) {
-        var v = a[15];
+    function c255lreduce (a, a15) {
+        var v = a15;
         a[15] = v & 0x7FFF;
         v = ((v / 0x8000) | 0) * 19;
         for (var i = 0; i <= 14; ++i) {
@@ -497,8 +497,8 @@ var curve25519 = function () {
         for (var i = 1; i <= 14; ++i)
             r[i] = (v = ((v / 0x10000) | 0) + a[i]*m) & 0xFFFF;
 
-        r[15] = ((v / 0x10000) | 0) + a[15]*m;
-        c255lreduce(r);
+        var r15 = ((v / 0x10000) | 0) + a[15]*m;
+        c255lreduce(r, r15);
     }
 
     //endregion
