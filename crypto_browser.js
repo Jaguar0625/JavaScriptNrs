@@ -544,6 +544,10 @@ var curve25519 = function () {
 
     //endregion
 
+    function createUnpackedArray () {
+        return new Array(UNPACKED_SIZE);
+    }
+
     /* Copy a number */
     function cpy (d, s) {
         for (var i = 0; i < UNPACKED_SIZE; ++i)
@@ -578,11 +582,11 @@ var curve25519 = function () {
      * be.  Simply calculates  y = x^(p-2)  so it's not too fast. */
     /* When sqrtassist is true, it instead calculates y = x^((p-5)/8) */
     function recip (y, x, sqrtassist) {
-        var t0 = new Array(UNPACKED_SIZE);
-        var t1 = new Array(UNPACKED_SIZE);
-        var t2 = new Array(UNPACKED_SIZE);
-        var t3 = new Array(UNPACKED_SIZE);
-        var t4 = new Array(UNPACKED_SIZE);
+        var t0 = createUnpackedArray();
+        var t1 = createUnpackedArray();
+        var t2 = createUnpackedArray();
+        var t3 = createUnpackedArray();
+        var t4 = createUnpackedArray();
 
         /* the chain for x^(2^255-21) is straight from djb's implementation */
         var i;
@@ -658,9 +662,9 @@ var curve25519 = function () {
 
     /* a square root */
     function sqrt (x, u) {
-        var v = new Array(UNPACKED_SIZE);
-        var t1 = new Array(UNPACKED_SIZE);
-        var t2 = new Array(UNPACKED_SIZE);
+        var v = createUnpackedArray();
+        var t1 = createUnpackedArray();
+        var t2 = createUnpackedArray();
 
         add(t1, u, u); /* t1 = 2u		*/
         recip(v, t1, 1); /* v = (2u)^((p-5)/8)	*/
@@ -866,13 +870,13 @@ var curve25519 = function () {
 
     /* P = kG   and  s = sign(P)/k  */
     function core (Px, s, k, Gx) {
-        var dx = new Array(UNPACKED_SIZE);
-        var t1 = new Array(UNPACKED_SIZE);
-        var t2 = new Array(UNPACKED_SIZE);
-        var t3 = new Array(UNPACKED_SIZE);
-        var t4 = new Array(UNPACKED_SIZE);
-        var x = [new Array(UNPACKED_SIZE), new Array(UNPACKED_SIZE)];
-        var z = [new Array(UNPACKED_SIZE), new Array(UNPACKED_SIZE)];
+        var dx = createUnpackedArray();
+        var t1 = createUnpackedArray();
+        var t2 = createUnpackedArray();
+        var t3 = createUnpackedArray();
+        var t4 = createUnpackedArray();
+        var x = [createUnpackedArray(), createUnpackedArray()];
+        var z = [createUnpackedArray(), createUnpackedArray()];
         var i, j;
 
         /* unpack the base */
@@ -1023,12 +1027,12 @@ var curve25519 = function () {
     function verify (v, h, P) {
         /* Y = v abs(P) + h G  */
         var d = new Array(32);
-        var p = [new Array(UNPACKED_SIZE), new Array(UNPACKED_SIZE)];
-        var s = [new Array(UNPACKED_SIZE), new Array(UNPACKED_SIZE)];
-        var yx = [new Array(UNPACKED_SIZE), new Array(UNPACKED_SIZE), new Array(UNPACKED_SIZE)];
-        var yz = [new Array(UNPACKED_SIZE), new Array(UNPACKED_SIZE), new Array(UNPACKED_SIZE)];
-        var t1 = [new Array(UNPACKED_SIZE), new Array(UNPACKED_SIZE), new Array(UNPACKED_SIZE)];
-        var t2 = [new Array(UNPACKED_SIZE), new Array(UNPACKED_SIZE), new Array(UNPACKED_SIZE)];
+        var p = [createUnpackedArray(), createUnpackedArray()];
+        var s = [createUnpackedArray(), createUnpackedArray()];
+        var yx = [createUnpackedArray(), createUnpackedArray(), createUnpackedArray()];
+        var yz = [createUnpackedArray(), createUnpackedArray(), createUnpackedArray()];
+        var t1 = [createUnpackedArray(), createUnpackedArray(), createUnpackedArray()];
+        var t2 = [createUnpackedArray(), createUnpackedArray(), createUnpackedArray()];
 
         var vi = 0, hi = 0, di = 0, nvh = 0, i, j, k;
 
