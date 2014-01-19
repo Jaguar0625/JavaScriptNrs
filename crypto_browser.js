@@ -560,40 +560,19 @@ var curve25519 = function () {
     /* Add/subtract two numbers.  The inputs must be in reduced form, and the
      * output isn't, so to do another addition or subtraction on the output,
      * first multiply it by one to reduce it. */
-    function add (xy, x, y) {
-        var r = c255laddmodp(x, y);
-        for (var i = 0; i < r.length; ++i)
-            xy[i] = r[i];
-    }
-
-    function sub (xy, x, y) {
-        var r = c255lsubmodp(x, y);
-        for (var i = 0; i < r.length; ++i)
-            xy[i] = r[i];
-    }
+    var add = c255laddmodp;
+    var sub = c255lsubmodp;
 
     /* Multiply a number by a small integer in range -185861411 .. 185861411.
      * The output is in reduced form, the input x need not be.  x and xy may point
      * to the same buffer. */
-    function mul_small (xy, x, y) {
-        var r = c255lmulasmall(x, y);
-        for (var i = 0; i < r.length; ++i)
-            xy[i] = r[i];
-    }
+    var mul_small = c255lmulasmall;
 
     /* Multiply two numbers.  The output is in reduced form, the inputs need not be. */
-    function mul (xy, x, y) {
-        var r = c255lmulmodp(x, y);
-        for (var i = 0; i < r.length; ++i)
-            xy[i] = r[i];
-    }
+    var mul = c255lmulmodp;
 
     /* Square a number.  Optimization of  mul25519(x2, x, x)  */
-    function sqr (xy, x) {
-        var r = c255lsqrmodp(x);
-        for (var i = 0; i < r.length; ++i)
-            xy[i] = r[i];
-    }
+    var sqr = c255lsqrmodp;
 
     /* Calculates a reciprocal.  The output is in reduced form, the inputs need not
      * be.  Simply calculates  y = x^(p-2)  so it's not too fast. */
@@ -718,11 +697,11 @@ var curve25519 = function () {
         return r;
     }
 
-    function c255lsqrmodp (a) {
+    function c255lsqrmodp (r, a) {
         var x = c255lsqr8h(a[15], a[14], a[13], a[12], a[11], a[10], a[9], a[8]);
         var z = c255lsqr8h(a[7], a[6], a[5], a[4], a[3], a[2], a[1], a[0]);
         var y = c255lsqr8h(a[15] + a[7], a[14] + a[6], a[13] + a[5], a[12] + a[4], a[11] + a[3], a[10] + a[2], a[9] + a[1], a[8] + a[0]);
-        var r = [];
+
         var v;
         r[0] = (v = 0x800000 + z[0] + (y[8] -x[8] -z[8] + x[0] -0x80) * 38) % 0x10000;
         r[1] = (v = 0x7fff80 + Math.floor(v / 0x10000) + z[1] + (y[9] -x[9] -z[9] + x[1]) * 38) % 0x10000;
@@ -741,7 +720,6 @@ var curve25519 = function () {
         r[14] = (v = 0x7fff80 + Math.floor(v / 0x10000) + z[14] + y[6] -x[6] -z[6] + x[14] * 38) % 0x10000;
         r[15] = 0x7fff80 + Math.floor(v / 0x10000) + z[15] + y[7] -x[7] -z[7] + x[15] * 38;
         c255lreduce(r);
-        return r;
     }
 
     function c255lmul8h (a7, a6, a5, a4, a3, a2, a1, a0, b7, b6, b5, b4, b3, b2, b1, b0) {
@@ -766,13 +744,13 @@ var curve25519 = function () {
         return r;
     }
 
-    function c255lmulmodp (a, b) {
+    function c255lmulmodp (r, a, b) {
         // Karatsuba multiplication scheme: x*y = (b^2+b)*x1*y1 - b*(x1-x0)*(y1-y0) + (b+1)*x0*y0
         var x = c255lmul8h(a[15], a[14], a[13], a[12], a[11], a[10], a[9], a[8], b[15], b[14], b[13], b[12], b[11], b[10], b[9], b[8]);
         var z = c255lmul8h(a[7], a[6], a[5], a[4], a[3], a[2], a[1], a[0], b[7], b[6], b[5], b[4], b[3], b[2], b[1], b[0]);
         var y = c255lmul8h(a[15] + a[7], a[14] + a[6], a[13] + a[5], a[12] + a[4], a[11] + a[3], a[10] + a[2], a[9] + a[1], a[8] + a[0],
             b[15] + b[7], b[14] + b[6], b[13] + b[5], b[12] + b[4], b[11] + b[3], b[10] + b[2], b[9] + b[1], b[8] + b[0]);
-        var r = [];
+
         var v;
         r[0] = (v = 0x800000 + z[0] + (y[8] -x[8] -z[8] + x[0] -0x80) * 38) % 0x10000;
         r[1] = (v = 0x7fff80 + Math.floor(v / 0x10000) + z[1] + (y[9] -x[9] -z[9] + x[1]) * 38) % 0x10000;
@@ -791,7 +769,6 @@ var curve25519 = function () {
         r[14] = (v = 0x7fff80 + Math.floor(v / 0x10000) + z[14] + y[6] -x[6] -z[6] + x[14] * 38) % 0x10000;
         r[15] = 0x7fff80 + Math.floor(v / 0x10000) + z[15] + y[7] -x[7] -z[7] + x[15] * 38;
         c255lreduce(r);
-        return r;
     }
 
     function c255lreduce (a) {
@@ -831,8 +808,7 @@ var curve25519 = function () {
         a[15] += v;
     }
 
-    function c255laddmodp (a, b) {
-        var r = [];
+    function c255laddmodp (r, a, b) {
         var v;
         r[0] = (v = (Math.floor(a[15] / 0x8000) + Math.floor(b[15] / 0x8000)) * 19 + a[0] + b[0]) % 0x10000;
         r[1] = (v = Math.floor(v / 0x10000) + a[1] + b[1]) % 0x10000;
@@ -853,8 +829,7 @@ var curve25519 = function () {
         return r;
     }
 
-    function c255lsubmodp (a, b) {
-        var r = [];
+    function c255lsubmodp (r, a, b) {
         var v;
         r[0] = (v = 0x80000 + (Math.floor(a[15] / 0x8000) - Math.floor(b[15] / 0x8000) - 1) * 19 + a[0] - b[0]) % 0x10000;
         r[1] = (v = Math.floor(v / 0x10000) + 0x7fff8 + a[1] - b[1]) % 0x10000;
@@ -872,11 +847,9 @@ var curve25519 = function () {
         r[13] = (v = Math.floor(v / 0x10000) + 0x7fff8 + a[13] - b[13]) % 0x10000;
         r[14] = (v = Math.floor(v / 0x10000) + 0x7fff8 + a[14] - b[14]) % 0x10000;
         r[15] = Math.floor(v / 0x10000) + 0x7ff8 + a[15]%0x8000 - b[15]%0x8000;
-        return r;
     }
 
-    function c255lmulasmall (a, m) {
-        var r = [];
+    function c255lmulasmall (r, a, m) {
         var v;
         r[0] = (v = a[0] * m) % 0x10000;
         r[1] = (v = Math.floor(v / 0x10000) + a[1]*m) % 0x10000;
@@ -895,7 +868,6 @@ var curve25519 = function () {
         r[14] = (v = Math.floor(v / 0x10000) + a[14]*m) % 0x10000;
         r[15] = Math.floor(v / 0x10000) + a[15]*m;
         c255lreduce(r);
-        return r;
     }
 
     //endregion
