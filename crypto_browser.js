@@ -1159,13 +1159,66 @@ var curve25519 = function () {
     };
 }();
 
+var converters = function () {
+    var charToNibble= {};
+    var nibbleToChar = [];
+    var i;
+    for (i = 0; i <= 9; ++i) {
+        var char = i.toString();
+        charToNibble[char] = i;
+        nibbleToChar.push(char)
+    }
+
+    for (i = 10; i <= 15; ++i) {
+        var lowerChar = String.fromCharCode('a'.charCodeAt(0) + i - 10);
+        var upperChar = String.fromCharCode('A'.charCodeAt(0) + i - 10);
+
+        charToNibble[lowerChar] = i;
+        charToNibble[upperChar] = i;
+        nibbleToChar.push(lowerChar);
+    }
+
+    return {
+        byteArrayToHexString: function (bytes) {
+            var str = '';
+            for (var i = 0; i < bytes.length; ++i)
+                str += nibbleToChar[bytes[i] >> 4] + nibbleToChar[bytes[i] & 0x0F];
+
+            return str;
+        },
+        stringToByteArray: function (str) {
+            var bytes = new Array(str.length);
+            for (var i = 0; i < str.length; ++i)
+                bytes[i] = str.charCodeAt(i);
+
+            return bytes;
+        },
+        hexStringToByteArray: function (str) {
+            var bytes = [];
+            var i = 0;
+            if (0 !== str.length % 2) {
+                bytes.push(charToNibble[str.charAt(0)]);
+                ++i;
+            }
+
+            for (; i < str.length - 1; i += 2)
+                bytes.push((charToNibble[str.charAt(i)] << 4) + charToNibble[str.charAt(i + 1)]);
+
+            return bytes;
+        },
+        stringToHexString: function (str) {
+            return this.byteArrayToHexString(this.stringToByteArray(str));
+        }
+    }
+}();
+
 var hash = {
     init: SHA256_init,
     update: SHA256_write,
     getBytes: SHA256_finalize
 };
 
-var nxtCrypto = function (curve25519, hash) {
+var nxtCrypto = function (curve25519, hash, converters) {
 
     function simpleHash (message) {
         hash.init();
@@ -1185,28 +1238,20 @@ var nxtCrypto = function (curve25519, hash) {
         return true;
     }
 
-    function byteArrayToHexString (bytes) {
-        return array_to_hex_string(bytes);
-    }
-
-    function hexStringToByteArray (str) {
-        var bytes = [];
-        for (var i = 0; i < str.length; i += 2)
-            bytes.push(parseInt('0x' + str.charAt(i) + str.charAt(i + 1)));
-
-        return bytes;
-    }
-
-    function publicKey (secretPhrase) {
-        var digest = simpleHash(secretPhrase);
-        return byteArrayToHexString(curve25519.keygen(digest).p);
+    function getPublicKey (secretPhrase) {
+        var secretPhraseBytes = converters.hexStringToByteArray(secretPhrase);
+        var digest = simpleHash(secretPhraseBytes);
+        return converters.byteArrayToHexString(curve25519.keygen(digest).p);
     }
 
     function sign (message, secretPhrase) {
-        var digest = simpleHash(secretPhrase);
+        var messageBytes = converters.hexStringToByteArray(message);
+        var secretPhraseBytes = converters.hexStringToByteArray(secretPhrase);
+
+        var digest = simpleHash(secretPhraseBytes);
         var s = curve25519.keygen(digest).s;
 
-        var m = simpleHash(message);
+        var m = simpleHash(messageBytes);
 
         hash.init();
         hash.update(m);
@@ -1222,17 +1267,18 @@ var nxtCrypto = function (curve25519, hash) {
 
         var v = curve25519.sign(h, x, s);
 
-        return byteArrayToHexString(v.concat(h));
+        return converters.byteArrayToHexString(v.concat(h));
     }
 
     function verify (signature, message, publicKey) {
-        var signatureBytes = hexStringToByteArray(signature);
-        var publicKeyBytes = hexStringToByteArray(publicKey);
+        var signatureBytes = converters.hexStringToByteArray(signature);
+        var messageBytes = converters.hexStringToByteArray(message);
+        var publicKeyBytes = converters.hexStringToByteArray(publicKey);
         var v = signatureBytes.slice(0, 32);
         var h = signatureBytes.slice(32);
         var y = curve25519.verify(v, h, publicKeyBytes);
 
-        var m = simpleHash(message);
+        var m = simpleHash(messageBytes);
 
         hash.init();
         hash.update(m);
@@ -1243,9 +1289,9 @@ var nxtCrypto = function (curve25519, hash) {
     }
 
     return {
-        publicKey: publicKey,
+        getPublicKey: getPublicKey,
         sign: sign,
         verify: verify
     };
 
-}(curve25519, hash);
+}(curve25519, hash, converters);

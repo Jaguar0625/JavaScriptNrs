@@ -1,7 +1,8 @@
 // get the curve and crypto functions
-var crypto = require('./util/nodejs.bootstrap.js');
-curve25519 = crypto.curve25519;
-crypto = crypto.crypto;
+var bootstrap = require('./util/nodejs.bootstrap.js');
+var crypto = bootstrap.crypto;
+var curve25519 = bootstrap.curve25519;
+var converters = bootstrap.converters;
 
 var output = require('./util/output');
 
@@ -14,7 +15,7 @@ function extractBytesFromLine(line) {
     var parts = line.split(' ');
 
     for (var i = 1; i < parts.length - 1; ++i) {
-        var byte = (parts[i], 16) & 0xFF;
+        var byte = parts[i] & 0xFF;
         if (0 != (byte & 0x80))
             byte |= 0xFFFFFF00;
 
@@ -160,7 +161,8 @@ function runVerifyTest () {
 
 function runCryptoPublicKeyTest () {
     loadTestCases('./data/cryptopublickeytest.dat', [{ name: 'p', type: 'string' }, { name: 'k', type: 'hexstring' }], function (testCase) {
-        var k = crypto.publicKey(testCase.p);
+        var phraseAsHexString = converters.stringToHexString(testCase.p);
+        var k = crypto.getPublicKey(phraseAsHexString);
 
         if (!areEqual(k, testCase.k)) {
             console.log('E: ' + testCase.k);
@@ -174,7 +176,9 @@ function runCryptoPublicKeyTest () {
 
 function runCryptoSignTest () {
     loadTestCases('./data/cryptosigntest.dat', [{ name: 'p', type: 'string' }, 'm', { name: 's', type: 'hexstring' }], function (testCase) {
-        var s = crypto.sign(testCase.m, testCase.p);
+        var messageAsHexString = converters.byteArrayToHexString(testCase.m);
+        var phraseAsHexString = converters.stringToHexString(testCase.p);
+        var s = crypto.sign(messageAsHexString, phraseAsHexString);
 
         if (!areEqual(s, testCase.s)) {
             console.log('E: ' + testCase.s);
@@ -186,14 +190,6 @@ function runCryptoSignTest () {
     });
 }
 
-function stringToBytes(s) {
-    var bytes = [];
-    for (var i = 0; i < s.length; ++i)
-        bytes.push(s.charCodeAt(i));
-
-    return bytes;
-}
-
 function runCryptoVerifyTest () {
     console.log('Running verification test cases ...');
 
@@ -203,7 +199,7 @@ function runCryptoVerifyTest () {
     console.log('generating public keys (' + secrets.length + ') ...');
     var keys = [];
     for (var i = 0; i < secrets.length; ++i)
-        keys.push(crypto.publicKey(secrets[i]));
+        keys.push(crypto.getPublicKey(converters.stringToHexString(secrets[i])));
 
     function foreachSecretAndMessage (callback) {
         for (var i = 0; i < secrets.length; ++i) {
@@ -215,8 +211,9 @@ function runCryptoVerifyTest () {
     console.log('generating signatures (' + messages.length + ') ...');
     var sigs = {};
     foreachSecretAndMessage(function (secret, key, message) {
-        var messageBytes = stringToBytes(message);
-        var sig = crypto.sign(messageBytes, secret);
+        var sig = crypto.sign(
+            converters.stringToHexString(message),
+            converters.stringToHexString(secret));
         sigs[secret + '.' + message] = sig;
     });
 
@@ -227,8 +224,10 @@ function runCryptoVerifyTest () {
         foreachSecretAndMessage(function (secret, key, message) {
             var id = secret + '.' + message;
             for (var i in sigs) {
-                var messageBytes = stringToBytes(message);
-                var result = crypto.verify(sigs[i], messageBytes, key);
+                var result = crypto.verify(
+                    sigs[i],
+                    converters.stringToHexString(message),
+                    key);
 
                 if (result == (id == i)) {
                     ++numPassed;
@@ -246,6 +245,30 @@ function runCryptoVerifyTest () {
     }, secrets.length * messages.length * secrets.length * messages.length);
 }
 
+function runCryptoApiUsageTest () {
+    console.log('*** Crypto API Usage Example ***');
+    var nxtCrypto = crypto;
+
+    var message = '54686973206973206120736563726574206d6573736167652074686174206e6565647320746f206265207369676e6564';
+    var secretPhrase = '54686973206973206d7920766572792073656372657420706872617365';
+    var publicKey = nxtCrypto.getPublicKey(secretPhrase);
+    console.log(publicKey); // 698168d8669c9310d68101dfcc974ed4
+                            // ef454692da6f028f68114db5fdcc4f6a
+
+    var signature = nxtCrypto.sign(message, secretPhrase);
+    console.log(signature); // 94956bf3de7cfdedb2562a0eff698fed
+                            // 7f3e54bbf4476fbb23a192ddea04040f
+                            // 68efa5d03c3f9ebec4109401b50433f1
+                            // df267299d8b1ad2c485046c45e6b38da
+
+    var isVerified = nxtCrypto.verify(signature, message, publicKey)
+    console.log(isVerified); // true
+
+    console.log();
+}
+
+runCryptoApiUsageTest();
+
 runSignTest();
 runKeygenTest();
 runVerifyTest();
@@ -253,5 +276,4 @@ runVerifyTest();
 runCryptoPublicKeyTest();
 runCryptoSignTest()
 runCryptoVerifyTest();
-
 

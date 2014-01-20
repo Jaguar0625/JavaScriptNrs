@@ -28,6 +28,8 @@ cat './external/jssha256.js' > crypto_browser.js
 echo '' >> crypto_browser.js
 cat './core/curve25519.js' >> crypto_browser.js
 echo '' >> crypto_browser.js
+cat './core/converters.js' >> crypto_browser.js
+echo '' >> crypto_browser.js
 cat './core/crypto.js' >> crypto_browser.js
 
 pushd . > /dev/null
@@ -52,8 +54,3 @@ function generateDataFiles {
 generateDataFiles
 
 popd > /dev/null
-
-# sed -e '/debug/d' \
-#    -e '/.*NODEJS>/,/.*<NODEJS/d' \
-#    -e '/./,/^$/!d' \
-#    ./core/curve25519.node.js > ./core/curve25519.js
