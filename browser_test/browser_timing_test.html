@@ -1,0 +1,70 @@
+<html>
+    <head>
+        <title>Crypto Browser Timing Test</title>
+        <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+        <script src="../crypto_browser.js"></script>
+        <script src="browser_timing_test.js"></script>
+        <style>
+            td.error { color: red; }
+            td:nth-child(1) {
+                font-style: italic;
+                width: 75px;
+            }
+            td {
+                word-wrap: break-word;
+                max-width: 500px;
+                padding: 1px 5px;
+            }
+            th { text-align: left }
+            table { padding-bottom: 10px; }
+        </style>
+    </head>
+    <body>
+        <table>
+            <tbody>
+                <tr>
+                    <td>Message</td>
+                    <td id="message">This is a secret message that needs to be signed</td>
+                </tr>
+                <tr>
+                    <td>Message As Hex</td>
+                    <td id="message-hex"></td>
+                </tr>
+                <tr>
+                    <td>Secret</td>
+                    <td id="secret">This is my very secret phrase</td>
+                </tr>
+                <tr>
+                    <td>Secret As Hex</td>
+                    <td id="secret-hex"></td>
+                </tr>
+            </tbody>
+        </table>
+        <table>
+            <thead>
+                <tr>
+                    <th>Action</th>
+                    <th>Timing</th>
+                    <th>Result</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Public Key</td>
+                    <td id="pk-timing"></td>
+                    <td id="pk-result"></td>
+                </tr>
+                <tr>
+                    <td>Sign</td>
+                    <td id="sign-timing"></td>
+                    <td id="sign-result"></td>
+                </tr>
+                <tr>
+                    <td>Verify</td>
+                    <td id="verify-timing"></td>
+                    <td id="verify-result"></td>
+                </tr>
+            </tbody>
+        </table>
+    </body>
+</html>
