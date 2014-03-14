@@ -683,21 +683,34 @@ var curve25519 = function () {
      */
 
     function sign (h, x, s) {
-        /* v = (x - h) s  mod q  */
-        var tmp1 = new Array(65);
-        var tmp2 = new Array(33);
-        var w;
-        var i;
+        // v = (x - h) s  mod q
+        var w, i;
+        var h1 = new Array(32)
+        var x1 = new Array(32);
+        var tmp1 = new Array(64);
+        var tmp2 = new Array(64);
 
+        // Don't clobber the arguments, be nice!
+        cpy32(h1, h);
+        cpy32(x1, x);
+
+        // Reduce modulo group order
+        var tmp3 = new Array(32);
+        divmod(tmp3, h1, 32, ORDER, 32);
+        divmod(tmp3, x1, 32, ORDER, 32);
+
+        // v = x1 - h1
+        // If v is negative, add the group order to it to become positive.
+        // If v was already positive we don't have to worry about overflow
+        // when adding the order because v < ORDER and 2*ORDER < 2^256
         var v = new Array(32);
-        mula_small(v, x, 0, h, 32, -1);
-        var v31 = v[31];
-        if (0 !== (v31 & 0x80))
-            v31 |= 0xFFFFFF00;
+        mula_small(v, x1, 0, h1, 32, -1);
+        mula_small(v, v , 0, ORDER, 32, 1);
 
-        mula_small(v, v, 0, ORDER, 32, (15 - v31) / 16);
+        // tmp1 = (x-h)*s mod q
         mula32(tmp1, v, s, 32, 1);
         divmod(tmp2, tmp1, 64, ORDER, 32);
+
         for (w = 0, i = 0; i < 32; i++)
             w |= v[i] = tmp1[i];
 
